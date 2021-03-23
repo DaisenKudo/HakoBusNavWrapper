@@ -40,7 +40,9 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
 
-        AndroidThreeTen.init()
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) {
+            AndroidThreeTen.init(application)
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

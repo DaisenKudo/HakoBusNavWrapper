@@ -1,13 +1,15 @@
 package io.github.qlain.hakobusnavwrapper.repository
 
+import com.jakewharton.threetenabp.AndroidThreeTen
 import io.github.qlain.hakobusnavwrapper.model.BusInformation
 import okhttp3.*
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import org.threeten.bp.*
 import java.io.IOException
 import java.lang.NullPointerException
 import java.lang.StringBuilder
-import java.time.LocalTime
+import java.time.*
 
 //函館バスロケーション情報取得用のURL
 private const val URI = "https://hakobus.bus-navigation.jp/wgsys/wgs/bus.htm"
@@ -135,14 +137,15 @@ object HakoBusLocationRepository {
         }
 
         //データ取得日時
+        //TODO:ABPのLocalTimeはよくないかも
         val refreshTime = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            LocalTime.parse(
+            java.time.LocalTime.parse(
                 doc.body().getElementById("page-wrapper").getElementsByClass("center_box")[0].getElementsByClass("label_bar")[0].getElementsByClass("clear_fix")[0].getElementsByClass("col-md-6")[1].getElementsByClass("pull-right")[0].getElementsByTag("li")[2].text()
             )
         } else {
             val time = doc.body().getElementById("page-wrapper").getElementsByClass("center_box")[0].getElementsByClass("label_bar")[0].getElementsByClass("clear_fix")[0].getElementsByClass("col-md-6")[1].getElementsByClass("pull-right")[0].getElementsByTag("li")[2].text()
-            LocalTime().
-            LocalTime.of(
+
+            org.threeten.bp.LocalTime.of(
                 time.substringBefore(":").toInt(),
                 time.substringAfter(":").toInt()
             )
