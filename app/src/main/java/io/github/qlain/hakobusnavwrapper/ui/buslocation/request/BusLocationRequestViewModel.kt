@@ -1,4 +1,4 @@
-package io.github.qlain.hakobusnavwrapper.ui.buslocation
+package io.github.qlain.hakobusnavwrapper.ui.buslocation.request
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -6,7 +6,12 @@ import androidx.lifecycle.ViewModel
 import io.github.qlain.hakobusnavwrapper.model.BusInformation
 import io.github.qlain.hakobusnavwrapper.repository.HakoBusLocationRepository
 
-class BusLocationViewModel : ViewModel(), HakoBusLocationRepository.NotifyViewModel {
+class BusLocationRequestViewModel : ViewModel(), HakoBusLocationRepository.NotifyViewModel {
+
+    val buttons = HashMap<String, String>().apply {
+        this["swap"] = "↑↓"
+        this["confirm"] = "検索"
+    }
 
     private val _text = MutableLiveData<String>().apply {
         value = "This is home Fragment"
@@ -15,7 +20,6 @@ class BusLocationViewModel : ViewModel(), HakoBusLocationRepository.NotifyViewMo
 
     override fun onRefresh(data: BusInformation) {
         _text.postValue(data.isBusExist.toString())
-        println(data)
     }
 
 }
