@@ -14,7 +14,8 @@ class BusLocationViewModel : ViewModel(), HakoBusLocationRepository.NotifyViewMo
     val text: LiveData<String> = _text
 
     override fun onRefresh(data: BusInformation) {
-        _text.value = data
+        _text.postValue(data.isBusExist.toString())
+        println(data)
     }
 
 }
