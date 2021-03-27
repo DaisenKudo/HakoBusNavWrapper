@@ -1,15 +1,15 @@
 package io.github.qlain.hakobusnavwrapper.repository
 
-import com.jakewharton.threetenabp.AndroidThreeTen
+import android.util.Log
 import io.github.qlain.hakobusnavwrapper.model.BusInformation
 import okhttp3.*
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-import org.threeten.bp.*
 import java.io.IOException
+import java.lang.IllegalStateException
 import java.lang.NullPointerException
 import java.lang.StringBuilder
-import java.time.*
+import java.time.LocalTime
 
 //函館バスロケーション情報取得用のURL
 private const val URI = "https://hakobus.bus-navigation.jp/wgsys/wgs/bus.htm"
@@ -39,7 +39,7 @@ object HakoBusLocationRepository {
     /**
      * パースされたデータ
      */
-    private var data: BusInformation? = null
+    private var busInformation: BusInformation? = null
 
     init {
         reset()
@@ -110,14 +110,14 @@ object HakoBusLocationRepository {
      */
     fun execute(listener: NotifyViewModel) {
         val request = requireNotNull(request)
-        //this.listener = listener
+        this.listener = listener
 
         client.newCall(request).enqueue(object : Callback {
             override fun onResponse(call: Call, response: Response) {
                 //todo:サーバエラーの可能性❓
                 val doc = Jsoup.parse(response.body?.string())
                 parse(doc)
-                listener.onRefresh()
+                listener.onRefresh(busInformation ?: throw IllegalStateException())
             }
 
             override fun onFailure(call: Call, e: IOException) {
@@ -127,7 +127,10 @@ object HakoBusLocationRepository {
 
     }
 
-    private fun parse(doc: Document): BusInformation {
+    /**
+     * 取得したWebページを実際にパースします(重そう)
+     */
+    private fun parse(doc: Document): HakoBusLocationRepository {
         val results = ArrayList<BusInformation.Result>()
 
         fun isBusExist(): Boolean = try {
@@ -137,40 +140,92 @@ object HakoBusLocationRepository {
         }
 
         //データ取得日時
-        //TODO:ABPのLocalTimeはよくないかも
-        val refreshTime = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            java.time.LocalTime.parse(
-                doc.body().getElementById("page-wrapper").getElementsByClass("center_box")[0].getElementsByClass("label_bar")[0].getElementsByClass("clear_fix")[0].getElementsByClass("col-md-6")[1].getElementsByClass("pull-right")[0].getElementsByTag("li")[2].text()
-            )
-        } else {
-            val time = doc.body().getElementById("page-wrapper").getElementsByClass("center_box")[0].getElementsByClass("label_bar")[0].getElementsByClass("clear_fix")[0].getElementsByClass("col-md-6")[1].getElementsByClass("pull-right")[0].getElementsByTag("li")[2].text()
+        val refTime = LocalTime.parse(
+                doc.body().getElementsByClass("container")[0].getElementsByClass("label_bar")[0].getElementsByClass("clearfix")[0].getElementsByTag("ul")[0].getElementsByTag("li")[1].text()
+        )
 
-            org.threeten.bp.LocalTime.of(
-                time.substringBefore(":").toInt(),
-                time.substringAfter(":").toInt()
-            )
+        /**
+         * バスがない場合、これ以上のスクレイピングを行わずに結果を返す
+         */
+        if (!isBusExist()) {
+            this.busInformation = BusInformation(refTime, isBusExist(), ArrayList())
+            return this
         }
 
         /**
          * バスの一覧が入ったリスト群(未スクレイピング)
          */
-        val list = if (isBusExist()) {
-                doc.body()
-                    .getElementById("page-wrapper")
-                    .getElementsByClass("center_box")[0]
-                    .getElementById("buslist")
-                    .getElementsByClass("clearfix")[0]
-                    .getElementsByClass("route_box")
-            } else {
-                null
+        doc.body().getElementById("page-wrapper")
+                  .getElementsByClass("center_box")[0]
+                  .getElementById("buslist")
+                  .getElementsByClass("clearfix")[0]
+                  .getElementsByClass("route_box")
+                  ?.forEach { busList ->
+            val name: String
+            val via: String
+            val from: String
+            val to: String
+            var schedule: LocalTime
+            var prediction: LocalTime
+            var delayed: Int
+            val departure: BusInformation.Result.BusTime
+            val arrive: BusInformation.Result.BusTime
+            val take: Int
+            val estimate: Int
+
+            busList.getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let { it1 ->
+                it1[0].let { it2 ->
+                    it2.getElementsByTag("td").let {
+                        it[0].getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let {
+                            name = it[0].text() //バス系統名
+                            via = it[2].text() //経由
+                        }
+                        //it[1] //no data
+                        it[2].getElementsByTag("div")[0].getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let {
+                            //乗車バス停
+                            from = it[0].getElementsByTag("font")[0].text()
+                            //定刻
+                            schedule = LocalTime.parse(it[1].text().filter { Regex("[0-9:]").containsMatchIn(it.toString()) })
+                            //予測
+                            prediction = LocalTime.parse(it[2].text().filter { Regex("[0-9:]").containsMatchIn(it.toString()) })
+                            //定刻からの遅れ(マイナスの場合は早い、日付跨ぎを想定していない)
+                            delayed = (prediction.hour - schedule.hour) * 60 + (prediction.minute - schedule.minute)
+                            //バス発車
+                            departure = BusInformation.Result.BusTime(schedule, prediction, delayed)
+                        }
+                        it[3].getElementsByTag("div")[0].getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let {
+                            //乗車バス停
+                            to = it[0].getElementsByTag("font")[0].text()
+                            //定刻
+                            schedule = LocalTime.parse(it[1].text().filter { Regex("[0-9:]").containsMatchIn(it.toString()) })
+                            //予測
+                            prediction = LocalTime.parse(it[2].text().filter { Regex("[0-9:]").containsMatchIn(it.toString()) })
+                            //定刻からの遅れ(マイナスの場合は早い、日付跨ぎを想定していない)
+                            delayed = (prediction.hour - schedule.hour) * 60 + (prediction.minute - schedule.minute)
+                            //バス発車
+                            arrive = BusInformation.Result.BusTime(schedule, prediction, delayed)
+                        }
+                        it[4].getElementsByTag("div")[0].getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let {
+                            take = it[1].text().filter { Regex("0-9").containsMatchIn(it.toString()) }.toInt()
+                        }
+                    }
+                }
+                it1[1].let {
+                    //あと何分後にバスが来るか
+                    val t = it.getElementsByTag("td")[1].text().filter { Regex("0-9").containsMatchIn( it.toString()) }.toInt()
+                    estimate = if (t != 0) t else 0
+                    //it.getElementsByTag("td")[2]で乗り換え情報取ってこれそう
+                }
             }
-
-
-
-        list?.forEach {
             results.add(BusInformation.Result(
-
+                    name, from, via, to, departure, arrive, take, estimate
             ))
         }
+
+        Log.d("repo","data refreshed")
+
+        this.busInformation = BusInformation(refTime, isBusExist(), results)
+
+        return this
     }
 }
