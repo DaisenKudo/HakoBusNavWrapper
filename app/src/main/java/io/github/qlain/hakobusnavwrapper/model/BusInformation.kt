@@ -3,8 +3,9 @@ package io.github.qlain.hakobusnavwrapper.model
 import java.time.LocalTime
 
 data class BusInformation(
-    val refDate: LocalTime, //データ取得日時
-    val results: ArrayList<Result> //結果一覧
+    val refTime: LocalTime, //データ取得日時
+    val isBusExist: Boolean, //データ取得時点から60分以内にバスがあるか(60分以上は取得元の制約で取得できないことがある)
+    val results: ArrayList<Result> //結果一覧(isBusExistがfalseなら空リストになるべき)
 ) {
     data class Result(
         val name: String, //バス系統名
