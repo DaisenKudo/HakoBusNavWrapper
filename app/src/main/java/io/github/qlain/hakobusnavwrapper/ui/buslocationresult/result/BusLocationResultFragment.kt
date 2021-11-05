@@ -1,4 +1,4 @@
-package io.github.qlain.hakobusnavwrapper.ui.buslocation.result
+package io.github.qlain.hakobusnavwrapper.ui.buslocationresult.result
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,6 +12,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import io.github.qlain.hakobusnavwrapper.R
 import io.github.qlain.hakobusnavwrapper.model.BusInformation
+import io.github.qlain.hakobusnavwrapper.repository.HakoBusLocationRepository
+import io.github.qlain.hakobusnavwrapper.ui.main.buslocation.request.BusLocationRequestFragment
 
 class BusLocationResultFragment : Fragment() {
 
@@ -24,6 +26,7 @@ class BusLocationResultFragment : Fragment() {
             }
         }
     )
+    private val hakoBusLocationRepository = HakoBusLocationRepository()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -32,7 +35,7 @@ class BusLocationResultFragment : Fragment() {
     ): View? {
         busLocationResultViewModel =
             ViewModelProvider(this).get(BusLocationResultViewModel::class.java)
-        return inflater.inflate(R.layout.fragment_bus_location_request, container, false)
+        return inflater.inflate(R.layout.fragment_bus_location_result, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -49,7 +52,11 @@ class BusLocationResultFragment : Fragment() {
             viewAdapter.setBusList(it)
         })
 
-
+        hakoBusLocationRepository
+            .from(BusLocationRequestFragment.from)
+            .to(BusLocationRequestFragment.to)
+            .build()
+            .execute(busLocationResultViewModel)
     }
 
     private class ViewAdapter(
@@ -58,7 +65,13 @@ class BusLocationResultFragment : Fragment() {
 
         private var busList: List<BusInformation.Result> = emptyList()
         fun setBusList(busList: List<BusInformation.Result>) {
-            this.busList = busList
+            this.busList = if (busList.isNotEmpty()) {
+                busList
+            } else {
+                //バスが60分以内にないとき
+                //TODO:別なfragmentを表示させるべき
+                listOf(BusInformation.Result("60分以内に接近しているバスはありません"))
+            }
             notifyDataSetChanged()
         }
 
@@ -74,6 +87,8 @@ class BusLocationResultFragment : Fragment() {
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             holder.itemView.apply {
                 findViewById<TextView>(R.id.tv_name).text = busList[position].name
+                findViewById<TextView>(R.id.tv_estimate).text = if ( busList[position].estimate != null ) busList[position].estimate.toString() + "分" else ""
+                findViewById<TextView>(R.id.tv_take).text = if ( busList[position].take != null ) busList[position].take.toString() + "分" else ""
                 holder.itemView.setOnClickListener {
                     listener.onClickItem(it, busList[position])
                 }

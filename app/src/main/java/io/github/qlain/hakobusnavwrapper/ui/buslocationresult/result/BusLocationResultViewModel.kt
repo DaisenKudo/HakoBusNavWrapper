@@ -1,4 +1,4 @@
-package io.github.qlain.hakobusnavwrapper.ui.buslocation.result
+package io.github.qlain.hakobusnavwrapper.ui.buslocationresult.result
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -14,7 +14,13 @@ class BusLocationResultViewModel : ViewModel(), HakoBusLocationRepository.Notify
     val rv_bus_info: LiveData<List<BusInformation.Result>> = _rv_bus_info
 
     override fun onRefresh(data: BusInformation) {
-        _rv_bus_info.postValue(data.results)
+        _rv_bus_info.postValue(
+            if (data.isBusExist) {
+                data.results
+            } else {
+                emptyList()
+            }
+        )
     }
 
 }

@@ -7,19 +7,19 @@
 
     <fragment
         android:id="@+id/nav_bus_location"
-        android:name="io.github.qlain.hakobusnavwrapper.ui.buslocation.request.BusLocationRequestFragment"
+        android:name="io.github.qlain.hakobusnavwrapper.ui.main.buslocation.request.BusLocationRequestFragment"
         android:label="@string/menu_bus_location"
         tools:layout="@layout/fragment_bus_location_request" />
 
     <fragment
         android:id="@+id/nav_gallery"
-        android:name="io.github.qlain.hakobusnavwrapper.ui.gallery.GalleryFragment"
+        android:name="io.github.qlain.hakobusnavwrapper.ui.main.gallery.GalleryFragment"
         android:label="@string/menu_gallery"
         tools:layout="@layout/fragment_gallery" />
 
     <fragment
         android:id="@+id/nav_slideshow"
-        android:name="io.github.qlain.hakobusnavwrapper.ui.slideshow.SlideshowFragment"
+        android:name="io.github.qlain.hakobusnavwrapper.ui.main.slideshow.SlideshowFragment"
         android:label="@string/menu_slideshow"
         tools:layout="@layout/fragment_slideshow" />
 </navigation>

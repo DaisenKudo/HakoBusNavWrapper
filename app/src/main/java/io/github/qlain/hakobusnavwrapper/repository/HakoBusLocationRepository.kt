@@ -18,7 +18,7 @@ import kotlin.collections.HashMap
 //函館バスロケーション情報取得用のURL
 private const val URI = "https://hakobus.bus-navigation.jp/wgsys/wgs/bus.htm"
 
-object HakoBusLocationRepository {
+class HakoBusLocationRepository {
     /**
      * データを受け取るViewModelにリッスンさせます
      */
@@ -138,7 +138,7 @@ object HakoBusLocationRepository {
          * バスがない場合、これ以上のスクレイピングを行わずに結果を返す
          */
         if (!isBusExist()) {
-            this.busInformation = BusInformation(refTime, isBusExist(), ArrayList())
+            this.busInformation = BusInformation(refTime, isBusExist(), emptyList())
             return this
         }
 
