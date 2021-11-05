@@ -4,10 +4,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.buslocation.request.BusLocationRequestFragment">
+    tools:context=".ui.main.buslocation.request.BusLocationRequestFragment">
 
     <EditText
-        android:id="@+id/et_from"
+        android:id="@+id/tv_from"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
@@ -34,7 +34,7 @@
         android:layout_marginBottom="8dp"
         android:textAlignment="center"
         android:textSize="20sp"
-        app:layout_constraintTop_toBottomOf="@id/et_from"
+        app:layout_constraintTop_toBottomOf="@id/tv_from"
         app:layout_constraintBottom_toTopOf="@id/et_to"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

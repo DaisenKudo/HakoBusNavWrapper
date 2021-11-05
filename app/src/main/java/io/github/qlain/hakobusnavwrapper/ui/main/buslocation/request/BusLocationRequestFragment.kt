@@ -1,5 +1,6 @@
-package io.github.qlain.hakobusnavwrapper.ui.buslocation.request
+package io.github.qlain.hakobusnavwrapper.ui.main.buslocation.request
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -9,11 +10,16 @@ import android.widget.EditText
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import io.github.qlain.hakobusnavwrapper.R
-import io.github.qlain.hakobusnavwrapper.repository.HakoBusLocationRepository
+import io.github.qlain.hakobusnavwrapper.ui.buslocationresult.BusLocationResultActivity
 
 class BusLocationRequestFragment : Fragment() {
 
     private lateinit var busLocationRequestViewModel: BusLocationRequestViewModel
+
+    companion object {
+        var from = ""
+        var to = ""
+    }
 
     override fun onCreateView(
             inflater: LayoutInflater,
@@ -25,7 +31,7 @@ class BusLocationRequestFragment : Fragment() {
         val root = inflater.inflate(R.layout.fragment_bus_location_request, container, false)
         //val textView: TextView = root.findViewById(R.id.bt_swap)
 
-        val etFrom = root.findViewById<EditText>(R.id.et_from).apply {
+        val etFrom = root.findViewById<EditText>(R.id.tv_from).apply {
 
         }
         val etTo = root.findViewById<EditText>(R.id.et_to).apply {
@@ -42,15 +48,16 @@ class BusLocationRequestFragment : Fragment() {
             }
         }
 
-        /*busLocationViewModel.text.observe(viewLifecycleOwner, Observer {
-            textView.text = it
-        })*/
-
-        HakoBusLocationRepository
-            .from("函館駅前")
-            .to("五稜郭")
-            .build()
-            .execute(busLocationRequestViewModel)
+        root.findViewById<Button>(R.id.bt_confirm).apply {
+            text = busLocationRequestViewModel.buttons["confirm"]
+            setOnClickListener {
+                from = "五稜郭"
+                to = "函館駅前"
+                /*from = etFrom.text.toString()
+                to = etTo.text.toString()*/
+                startActivity(Intent(activity, BusLocationResultActivity::class.java))
+            }
+        }
 
         return root
     }
