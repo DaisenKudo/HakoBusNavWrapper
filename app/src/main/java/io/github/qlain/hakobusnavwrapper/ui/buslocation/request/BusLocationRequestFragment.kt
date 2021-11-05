@@ -25,7 +25,7 @@ class BusLocationRequestFragment : Fragment() {
         val root = inflater.inflate(R.layout.fragment_bus_location_request, container, false)
         //val textView: TextView = root.findViewById(R.id.bt_swap)
 
-        val etFrom = root.findViewById<EditText>(R.id.et_from).apply {
+        val etFrom = root.findViewById<EditText>(R.id.tv_from).apply {
 
         }
         val etTo = root.findViewById<EditText>(R.id.et_to).apply {
@@ -46,11 +46,25 @@ class BusLocationRequestFragment : Fragment() {
             textView.text = it
         })*/
 
-        HakoBusLocationRepository
-            .from("函館駅前")
-            .to("五稜郭")
-            .build()
-            .execute(busLocationRequestViewModel)
+        root.findViewById<Button>(R.id.bt_confirm).apply {
+            text = busLocationRequestViewModel.buttons["confirm"]
+            setOnClickListener {
+                HakoBusLocationRepository
+                    .from("五稜郭")
+                    .to("函館駅前")
+                    .build()
+                    .execute(busLocationRequestViewModel)
+                /*
+                HakoBusLocationRepository
+                    .from(etFrom.text.toString())
+                    .to(etTo.text.toString())
+                    .build()
+                    .execute(busLocationRequestViewModel)
+                */
+            }
+        }
+
+
 
         return root
     }

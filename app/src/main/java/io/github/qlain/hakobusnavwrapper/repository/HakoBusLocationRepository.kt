@@ -10,6 +10,10 @@ import java.lang.IllegalStateException
 import java.lang.NullPointerException
 import java.lang.StringBuilder
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 //函館バスロケーション情報取得用のURL
 private const val URI = "https://hakobus.bus-navigation.jp/wgsys/wgs/bus.htm"
@@ -28,7 +32,7 @@ object HakoBusLocationRepository {
      * https://hakobus.bus-navigation.jp/wgsys/wgp/bus.htm?tabName=searchTab&selectedLandmarkCatCd=&selectfiftySoundCharacter=&from=%E4%BA%94%E7%A8%9C%E9%83%AD&fromType=&to=%E5%87%BD%E9%A4%A8%E9%A7%85%E5%89%8D&toType=&locale=ja&fromlat=&fromlng=&tolat=&tolng=&fromSignpoleKey=&routeLayoutCd=&bsid=1&fromBusStopCd=&toBusStopCd=&mapFlag=false&existYn=N&routeKey=&nextDiagramFlag=0&diaRevisedDate=
      */
     private val param = HashMap<String, String>()
-    private fun setParam(key: String, value: String) { param[key] = value }
+    private fun setURLParam(key: String, value: String) { param[key] = value }
 
     /**
      * OkHttp3
@@ -48,34 +52,20 @@ object HakoBusLocationRepository {
     /**
      * URIパラメータの初期値を設定・再設定します
      */
-    fun reset() {
+    private fun reset() {
         //listener = null
-        setParam("tabName", "searchTab")
-        setParam("selectedLandmarkCatCd", "")
-        setParam("selectfiftySoundCharacter", "")
-        setParam("from", "")
-        setParam("fromType", "1")
-        setParam("to", "")
-        setParam("toType", "")
-        setParam("locale", "ja")
-        setParam("fromlat", "")
-        setParam("fromlng", "")
-        setParam("tolat", "")
-        setParam("tolng", "")
-        setParam("fromSignpoleKey", "")
-        setParam("routeLayoutCd", "")
-        setParam("bsid", "1")
-        setParam("fromBusStopCd", "")
-        setParam("toBusStopCd", "")
-        setParam("mapFlag", "false")
-        setParam("existYn", "")
+        setURLParam("tabName", "searchTab")
+        setURLParam("from", "")
+        setURLParam("to", "")
+        setURLParam("locale", "ja")
+        setURLParam("bsid", "1")
     }
 
     /**
      * 乗るバス停を設定します
      */
     fun from(busStop: String): HakoBusLocationRepository {
-        setParam("from", busStop)
+        setURLParam("from", busStop)
         return this
     }
 
@@ -83,7 +73,7 @@ object HakoBusLocationRepository {
      * 降りるバス停を設定します
      */
     fun to(busStop: String): HakoBusLocationRepository {
-        setParam("to", busStop)
+        setURLParam("to", busStop)
         return this
     }
 
@@ -155,70 +145,59 @@ object HakoBusLocationRepository {
         /**
          * バスの一覧が入ったリスト群(未スクレイピング)
          */
-        doc.body().getElementById("page-wrapper")
-                  .getElementsByClass("center_box")[0]
-                  .getElementById("buslist")
+        doc.body().getElementById("buslist")
                   .getElementsByClass("clearfix")[0]
                   .getElementsByClass("route_box")
                   ?.forEach { busList ->
             val name: String
             val via: String
+            val direction: String
             val from: String
             val to: String
-            var schedule: LocalTime
-            var prediction: LocalTime
-            var delayed: Int
             val departure: BusInformation.Result.BusTime
             val arrive: BusInformation.Result.BusTime
             val take: Int
             val estimate: Int
 
-            busList.getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let { it1 ->
-                it1[0].let { it2 ->
-                    it2.getElementsByTag("td").let {
-                        it[0].getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let {
-                            name = it[0].text() //バス系統名
-                            via = it[2].text() //経由
-                        }
-                        //it[1] //no data
-                        it[2].getElementsByTag("div")[0].getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let {
-                            //乗車バス停
-                            from = it[0].getElementsByTag("font")[0].text()
-                            //定刻
-                            schedule = LocalTime.parse(it[1].text().filter { Regex("[0-9:]").containsMatchIn(it.toString()) })
-                            //予測
-                            prediction = LocalTime.parse(it[2].text().filter { Regex("[0-9:]").containsMatchIn(it.toString()) })
-                            //定刻からの遅れ(マイナスの場合は早い、日付跨ぎを想定していない)
-                            delayed = (prediction.hour - schedule.hour) * 60 + (prediction.minute - schedule.minute)
-                            //バス発車
-                            departure = BusInformation.Result.BusTime(schedule, prediction, delayed)
-                        }
-                        it[3].getElementsByTag("div")[0].getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let {
-                            //乗車バス停
-                            to = it[0].getElementsByTag("font")[0].text()
-                            //定刻
-                            schedule = LocalTime.parse(it[1].text().filter { Regex("[0-9:]").containsMatchIn(it.toString()) })
-                            //予測
-                            prediction = LocalTime.parse(it[2].text().filter { Regex("[0-9:]").containsMatchIn(it.toString()) })
-                            //定刻からの遅れ(マイナスの場合は早い、日付跨ぎを想定していない)
-                            delayed = (prediction.hour - schedule.hour) * 60 + (prediction.minute - schedule.minute)
-                            //バス発車
-                            arrive = BusInformation.Result.BusTime(schedule, prediction, delayed)
-                        }
-                        it[4].getElementsByTag("div")[0].getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let {
-                            take = it[1].text().filter { Regex("0-9").containsMatchIn(it.toString()) }.toInt()
-                        }
-                    }
-                }
-                it1[1].let {
-                    //あと何分後にバスが来るか
-                    val t = it.getElementsByTag("td")[1].text().filter { Regex("0-9").containsMatchIn( it.toString()) }.toInt()
-                    estimate = if (t != 0) t else 0
-                    //it.getElementsByTag("td")[2]で乗り換え情報取ってこれそう
+            busList.getElementsByTag("table")[0].getElementsByTag("tbody")[0].getElementsByTag("tr").let {
+                val timeRegex = Regex("[^0-9:-]")
+                val timePattern = DateTimeFormatter.ofPattern("[]H:mm")
+
+                //系統
+                name = it[0].getElementsByTag("td")[0].getElementsByTag("span")[0].text()
+                //経由
+                via = it[1].getElementsByTag("td")[0].text()
+                //方面 : <br>「車種：　ノンステップ」と言う文言が入ることがある
+                direction = it[2].getElementsByTag("td")[0].text()
+                //所要時間
+                estimate = it[3].getElementsByTag("td")[0].text().replace(timeRegex, "").toInt()
+                //乗り換え
+                //it[3].getElementsByTag("td")[1].text()
+                //乗車バス停
+                from = it[4].getElementsByTag("td")[0].getElementsByTag("span")[1].text()
+                //乗車時刻
+                //時刻未定(--:--のときのExceptionである場合nullを入れる
+                departure = BusInformation.Result.BusTime(
+                    try { LocalTime.parse(it[5].getElementsByTag("td")[0].text().replace(timeRegex, ""), timePattern)} catch (e: DateTimeParseException){ null },
+                    try { LocalTime.parse(it[5].getElementsByTag("td")[1].text().replace(timeRegex, ""), timePattern)} catch (e: DateTimeParseException){ null }
+                )
+                //降車バス停
+                to = it[6].getElementsByTag("td")[0].getElementsByTag("span")[1].text()
+                //降車時刻
+                //時刻未定(--:--のときのExceptionである場合)nullを入れる
+                arrive = BusInformation.Result.BusTime(
+                    try { LocalTime.parse(it[7].getElementsByTag("td")[0].text().replace(timeRegex, ""), timePattern)} catch (e: DateTimeParseException){ null },
+                    try { LocalTime.parse(it[7].getElementsByTag("td")[1].text().replace(timeRegex, ""), timePattern)} catch (e: DateTimeParseException){ null }
+                )
+                //バスが来るまでの時間
+                take = if (it[8].getElementsByTag("td")[0].text() == "まもなく発車します") {
+                    0
+                } else {
+                    it[8].getElementsByTag("td")[0].text().replace(timeRegex, "").toInt()
                 }
             }
             results.add(BusInformation.Result(
-                    name, from, via, to, departure, arrive, take, estimate
+                    name = name, via = via, direction = direction, from = from, to = to, departure = departure, arrive = arrive, take = take, estimate = estimate
             ))
         }
 
